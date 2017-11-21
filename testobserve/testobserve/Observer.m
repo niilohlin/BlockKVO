@@ -26,21 +26,22 @@
         selectorDict = [[NSMutableDictionary alloc] init];
         _observationblocks[value] = selectorDict;
     }
-    if (selectorDict[selectorString]) {
-        [object removeObserver:self forKeyPath:selectorString context:objectContext];
-
+    if (!selectorDict[selectorString]) {
+        selectorDict[selectorString] = [[NSMutableArray alloc] init];
+        [object addObserver:self forKeyPath:selectorString options:NSKeyValueObservingOptionNew context:objectContext];
     }
-    selectorDict[selectorString] = block;
-    [object addObserver:self forKeyPath:selectorString options:NSKeyValueObservingOptionNew context:objectContext];
+    NSMutableArray *blocks = selectorDict[selectorString];
+    [blocks addObject:block];
 }
 
 - (void)observeValueForKeyPath:(nullable NSString *)keyPath ofObject:(nullable id)object change:(nullable NSDictionary<NSKeyValueChangeKey, id> *)change context:(nullable void *)context {
     NSValue *value = [NSValue valueWithNonretainedObject:object];
-    void (^block)(id) = _observationblocks[value][keyPath];
-    if (block) {
-        id newValue = change[NSKeyValueChangeNewKey];
+    NSArray *blocks = _observationblocks[value][keyPath];
+    id newValue = change[NSKeyValueChangeNewKey];
+    [blocks enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+        void (^block)(id) = obj;
         block(newValue);
-    }
+    }];
 }
 
 - (void)dealloc {
